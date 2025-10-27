@@ -34,7 +34,8 @@ select_and_attach() {
   # xargs removes the whitespace
   preview_cmd="$ZELLIJ_BIN pretty-print-session {1} && \
         echo -n 'Attached Clients: ' && \
-        $ZELLIJ_BIN --session {1} action list-clients 2>/dev/null | tail -n +2 | wc -l | xargs"
+        o=\$($ZELLIJ_BIN --session {1} action list-clients 2>&1); \
+        [[ \$(echo \"\$o\" | head -1) == *\"not found\"* ]] && echo 0 || echo \$((\$(echo \"\$o\" | wc -l) - 1))"
 
   $ZELLIJ_BIN ls --no-formatting | fzf \
     --border rounded \
