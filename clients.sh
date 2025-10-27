@@ -1,38 +1,62 @@
 #!/usr/bin/env bash
-
 # Requires a zellij fork with:
 # zellij ls --active
 # zellij print-session-layout <session_name>
 
-# Use ZELLIJ environment variable if set, otherwise use 'zellij' from PATH
-ZELLIJ="${ZELLIJ:-zellij}"
+# Zellij is already attached
+if [[ "$ZELLIJ" == "0" ]]; then
+  exit 0
+fi
+
+# Use ZELLIJ_BIN environment variable if set, otherwise use 'zellij' from PATH
+ZELLIJ_BIN="${ZELLIJ_BIN:-zellij}"
+
+if ! command -v $ZELLIJ_BIN &>/dev/null; then
+  echo "zellij executable not found at [$ZELLIJ_BIN]"
+  exit 1
+fi
+
+# Early validation: Check if pretty-print-session command exists
+if ! $ZELLIJ_BIN pretty-print-session --help &>/dev/null; then
+  echo "Error: 'zellij pretty-print-session' command not found or not supported." >&2
+  echo "This script requires a zellij fork with the pretty-print-session feature." >&2
+  exit 1
+fi
 
 # Function to select and attach to a session
 select_and_attach() {
-    local border_label="$1"
-    # Explanation:
-    # Print the session layout for this session name
-    # Followed by Attached Clients: <Number of Clients>
-    # tail skips the headers
-    # wc counts the lines
-    # xargs removes the whitespace
-    preview_cmd='$ZELLIJ print-session-layout {1} && \
-        echo -n "Attched Clients: " && \
-        $ZELLIJ --session {1} action list-clients 2>/dev/null | tail -n +2 | wc -l | xargs'
+  local border_label="$1"
+  # Explanation:
+  # Print the session layout for this session name
+  # Followed by Attached Clients: <Number of Clients>
+  # tail skips the headers
+  # wc counts the lines
+  # xargs removes the whitespace
+  preview_cmd="$ZELLIJ_BIN pretty-print-session {1} && \
+        echo -n 'Attached Clients: ' && \
+        $ZELLIJ_BIN --session {1} action list-clients 2>/dev/null | tail -n +2 | wc -l | xargs"
 
-    $ZELLIJ ls --no-formatting | fzf \
-        --border rounded \
-        --preview "$preview_cmd" \
-        --preview-label "Session Preview" \
-        --border-label "$border_label" | awk '{print $1}' | xargs -o $ZELLIJ attach
+  $ZELLIJ_BIN ls --no-formatting | fzf \
+    --border rounded \
+    --preview "$preview_cmd" \
+    --preview-label "Session Preview" \
+    --border-label "$border_label" | awk '{print $1}' | xargs -o $ZELLIJ_BIN attach
 }
 
-# Get all active sessions
-active_sessions=$($ZELLIJ ls --short --active 2>/dev/null)
+# Get all active sessions and validate --active flag support
+active_sessions=$($ZELLIJ_BIN ls --short --active 2>/dev/null)
+exit_code=$?
+
+# TODO: Find a way to ensure --active works
+# if [ $exit_code -ne 0 ]; then
+#   echo "Error: 'zellij ls --active' command failed." >&2
+#   echo "This script requires a zellij fork with support for the --active flag." >&2
+#   exit 1
+# fi
 
 if [ -z "$active_sessions" ]; then
-    select_and_attach "No active sessions"
-    exit 1
+  select_and_attach "No active sessions"
+  exit 1
 fi
 
 # Array to store sessions without clients
@@ -40,29 +64,29 @@ sessions_without_clients=()
 
 # Parse session names and check each for existing clients
 while IFS= read -r session; do
-    # Get clients for this session
-    output=$($ZELLIJ --session "$session" action list-clients 2>/dev/null)
+  # Get clients for this session
+  output=$($ZELLIJ_BIN --session "$session" action list-clients 2>/dev/null)
 
-    # Count clients (lines after header)
-    client_count=$(echo "$output" | tail -n +2 | grep -c '^')
+  # Count clients (lines after header)
+  client_count=$(echo "$output" | tail -n +2 | grep -c '^')
 
-    # If no clients, add to array
-    if [ "$client_count" -eq 0 ]; then
-        sessions_without_clients+=("$session")
-    fi
+  # If no clients, add to array
+  if [ "$client_count" -eq 0 ]; then
+    sessions_without_clients+=("$session")
+  fi
 done <<<"$active_sessions"
 
 # Check how many sessions without clients we have
 session_count=${#sessions_without_clients[@]}
 
 if [ "$session_count" -eq 0 ]; then
-    select_and_attach "No sessions found without clients attached"
-    exit 1
+  select_and_attach "No sessions found without clients attached"
+  exit 1
 elif [ "$session_count" -eq 1 ]; then
-    # Only one session without clients, connect automatically
-    session="${sessions_without_clients[0]}"
-    echo "Attaching to session: $session"
-    exec $ZELLIJ attach "$session"
+  # Only one session without clients, connect automatically
+  session="${sessions_without_clients[0]}"
+  echo "Attaching to session: $session"
+  exec $ZELLIJ_BIN attach "$session"
 else
-    select_and_attach "Multiple active sessions found"
+  select_and_attach "Multiple active sessions found"
 fi
