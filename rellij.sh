@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Requires a zellij fork with:
-# zellij ls --active
 # zellij print-session-layout <session_name>
+# zellij ls --active (optional: will grep for EXITED otherwise, accuracy may be reduced)
 
 # Zellij is already attached
 if [[ "$ZELLIJ" == "0" ]]; then
@@ -21,6 +21,13 @@ if ! $ZELLIJ_BIN pretty-print-session --help &>/dev/null; then
   echo "Error: 'zellij pretty-print-session' command not found or not supported." >&2
   echo "This script requires a zellij fork with the pretty-print-session feature." >&2
   exit 1
+fi
+
+# Check if --active flag is supported and set the appropriate command
+if $ZELLIJ_BIN ls --help 2>&1 | grep -q -- '--active'; then
+  active_sessions_cmd="$ZELLIJ_BIN ls --short --active"
+else
+  active_sessions_cmd="$ZELLIJ_BIN ls --short | grep -v EXITED"
 fi
 
 # Function to select and attach to a session
@@ -50,16 +57,9 @@ select_and_attach() {
   fi
 }
 
-# Get all active sessions and validate --active flag support
-active_sessions=$($ZELLIJ_BIN ls --short --active 2>/dev/null)
+# Get all active sessions
+active_sessions=$(eval "$active_sessions_cmd" 2>/dev/null)
 exit_code=$?
-
-# TODO: Find a way to ensure --active works
-# if [ $exit_code -ne 0 ]; then
-#   echo "Error: 'zellij ls --active' command failed." >&2
-#   echo "This script requires a zellij fork with support for the --active flag." >&2
-#   exit 1
-# fi
 
 if [ -z "$active_sessions" ]; then
   select_and_attach "No active sessions"
