@@ -37,11 +37,17 @@ select_and_attach() {
         o=\$($ZELLIJ_BIN --session {1} action list-clients 2>&1); \
         [[ \$(echo \"\$o\" | head -1) == *\"not found\"* ]] && echo 0 || echo \$((\$(echo \"\$o\" | wc -l) - 1))"
 
-  $ZELLIJ_BIN ls --no-formatting | fzf \
+  session=$($ZELLIJ_BIN ls --no-formatting --reverse | fzf \
     --border rounded \
     --preview "$preview_cmd" \
     --preview-label "Session Preview" \
-    --border-label "$border_label" | awk '{print $1}' | xargs -o $ZELLIJ_BIN attach
+    --border-label "$border_label" | awk '{print $1}')
+
+  if [ -n "$session" ]; then
+    $ZELLIJ_BIN attach "$session"
+  else
+    $ZELLIJ_BIN
+  fi
 }
 
 # Get all active sessions and validate --active flag support
