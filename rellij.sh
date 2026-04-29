@@ -72,8 +72,9 @@ select_and_attach() {
     log "Attaching to session: $session"
     $ZELLIJ_BIN attach "$session"
   else
-    log "No session selected by user, starting new zellij session"
-    $ZELLIJ_BIN
+    msg="No session selected by user"
+    log $msg
+    echo $msg >&2
   fi
 }
 
