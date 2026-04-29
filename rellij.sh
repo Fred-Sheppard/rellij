@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # Requires a zellij fork with:
-# zellij print-session-layout <session_name>
+# zellij pretty-print-session <session_name>
 # zellij ls --active (optional: Otherwise, will fall back on grep)
+
+# TODO: Fallback for pretty-print-session using dump-layout and parsing
+# TODO: Rewrite in rust
 
 # Set up logging
 LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/zellij-attach.log"
@@ -10,8 +13,6 @@ mkdir -p "$(dirname "$LOG_FILE")"
 log() {
   echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >>"$LOG_FILE"
 }
-
-log "==================== Script started ===================="
 
 # Zellij is already attached
 if [[ "$ZELLIJ" == "0" ]]; then
