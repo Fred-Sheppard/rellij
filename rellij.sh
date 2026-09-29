@@ -62,7 +62,17 @@ select_and_attach() {
         o=\$($ZELLIJ_BIN --session {1} action list-clients 2>&1); \
         [[ \$(echo \"\$o\" | head -1) == *\"not found\"* ]] && echo 0 || echo \$((\$(echo \"\$o\" | wc -l) - 1))"
 
-  session=$($ZELLIJ_BIN ls --no-formatting --reverse | fzf \
+  local all_sessions
+  all_sessions=$($ZELLIJ_BIN ls --no-formatting --reverse 2>/dev/null)
+
+  if [ -z "$all_sessions" ]; then
+    msg="No sessions found"
+    log "$msg"
+    echo "$msg" >&2
+    exit 1
+  fi
+
+  session=$(echo "$all_sessions" | fzf \
     --border rounded \
     --preview "$preview_cmd" \
     --preview-label "Session Preview" \
@@ -74,8 +84,8 @@ select_and_attach() {
     $ZELLIJ_BIN attach "$session"
   else
     msg="No session selected by user"
-    log $msg
-    echo $msg >&2
+    log "$msg"
+    echo "$msg" >&2
   fi
 }
 
